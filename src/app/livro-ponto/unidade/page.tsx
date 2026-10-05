@@ -77,7 +77,7 @@ export default async function LivroPontoUnidadePage({
                 paginaAtual={paginaAtual}
                 totalPaginas={documentos.length}
                 escola={escola}
-                ultimaSemQuebra={index === documentos.length - 1}
+                
               />
             </div>
           );

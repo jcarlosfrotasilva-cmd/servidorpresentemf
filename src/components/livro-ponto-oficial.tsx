@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { holidayLabel } from "@/lib/ausencias";
 import {
   ESCOLA_PADRAO,
   LEGENDA_OCORRENCIAS,
@@ -7,9 +6,8 @@ import {
   type EscolaConfig,
 } from "@/lib/livro-ponto-types";
 import type { LivroPontoDocumento } from "@/lib/livro-ponto";
-import { dayOfWeek, daysInMonth, formatDateBR, formatDateTimeBR } from "@/lib/time";
+import { formatDateBR, formatDateTimeBR } from "@/lib/time";
 
-/** Quantidade de linhas pautadas no verso (28 = bom equilíbrio entre espaço e página única). */
 const LINHAS_VERSO = 32;
 
 function LogoBrasao({ escola }: { escola: EscolaConfig }) {
@@ -18,7 +16,6 @@ function LogoBrasao({ escola }: { escola: EscolaConfig }) {
 
   if (escola.brasaoDataUrl) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
       <img
         src={escola.brasaoDataUrl}
         alt="Brasão da unidade escolar"
@@ -64,10 +61,10 @@ function Cabecalho({
           {comBrasao ? <LogoBrasao escola={escola} /> : null}
         </div>
 
-        <div className="flex-1 px-1.5 py-1 text-center">
-          <p className="text-[11px] font-bold tracking-wide">{escola.governo}</p>
-          <p className="text-[10px] font-semibold">{escola.secretaria}</p>
-          <p className="text-[9px]">
+        <div className="flex-1 px-2 py-1 text-left">
+          <p className="text-[10px] font-bold">{escola.governo}</p>
+          <p className="text-[9px] font-semibold">{escola.secretaria}</p>
+          <p className="text-[8.5px]">
             <span className="font-semibold">UNIDADE:</span> {escola.unidade}
             {escola.cie ? ` — ${escola.cie}` : ""}
           </p>
@@ -89,22 +86,22 @@ function Cabecalho({
   );
 }
 
-/** Códigos de saldo não são lançamentos (não vão para o verso). */
-const CODIGOS_SALDO = new Set(["S", "-"]);
-
-function codigosLancamento(dia: { codigos: string[]; incompleto?: boolean }): string[] {
-  return dia.codigos.filter((codigo) => !CODIGOS_SALDO.has(codigo.split(" ")[0]));
+function LinhaPontilhada({
+  label,
+  value,
+  className = "",
+}: {
+  label: string;
+  value: ReactNode;
+  className?: string;
+}) {
+  return (
+    <p className={`text-[10px] leading-[1.9] ${className}`}>
+      <span className="font-semibold">{label}</span> {value}
+    </p>
+  );
 }
 
-function temLancamento(dia: {
-  codigos: string[];
-  incompleto?: boolean;
-  feriadoNome?: string | null;
-}): boolean {
-  return codigosLancamento(dia).length > 0 || Boolean(dia.incompleto) || Boolean(dia.feriadoNome);
-}
-
-/** Descrição do lançamento para o verso e para o anexo (sem repetições). */
 function descricaoLancamento(dia: {
   feriadoNome: string | null;
   ocorrencia: string;
@@ -122,20 +119,18 @@ function descricaoLancamento(dia: {
     .join(" — ");
 }
 
-function LinhaPontilhada({
-  label,
-  value,
-  className = "",
-}: {
-  label: string;
-  value: ReactNode;
-  className?: string;
-}) {
-  return (
-    <p className={`text-[10px] leading-[1.9] ${className}`}>
-      <span className="font-semibold">{label}</span> {value}
-    </p>
-  );
+const CODIGOS_SALDO = new Set(["S", "-"]);
+
+function codigosLancamento(dia: { codigos: string[]; incompleto?: boolean }): string[] {
+  return dia.codigos.filter((codigo) => !CODIGOS_SALDO.has(codigo.split(" ")[0]));
+}
+
+function temLancamento(dia: {
+  codigos: string[];
+  incompleto?: boolean;
+  feriadoNome?: string | null;
+}): boolean {
+  return codigosLancamento(dia).length > 0 || Boolean(dia.incompleto) || Boolean(dia.feriadoNome);
 }
 
 export function LivroPontoFrente({
@@ -154,9 +149,9 @@ export function LivroPontoFrente({
   escola?: EscolaConfig;
 }) {
   const { identificacao, oficial, dias } = documento;
+  const hoje = new Date().toLocaleDateString("pt-BR");
   const porDia = new Map(dias.map((dia) => [Number(dia.dia), dia]));
-  // O formulário oficial lista todos os dias do mês; sábados e domingos sempre identificados.
-  const todosOsDias = daysInMonth(documento.mes);
+  const todosOsDias = Array.from({ length: new Date(Number(documento.mes.slice(0, 4)), Number(documento.mes.slice(5, 7)), 0).getDate() }, (_, i) => i + 1);
 
   return (
     <article
@@ -219,33 +214,18 @@ export function LivroPontoFrente({
           </tr>
         </thead>
         <tbody>
-          {todosOsDias.map((dataISO) => {
-            const numero = Number(dataISO.slice(8, 10));
-            const dow = dayOfWeek(dataISO);
+          {todosOsDias.map((numero) => {
             const dia = porDia.get(numero);
-            const sabado = dow === 6;
-            const domingo = dow === 7;
-            const marcacaoAssinatura = sabado
-              ? "Sábado"
-              : domingo
-                ? "Domingo"
-                : dia?.feriadoNome
-                  ? dia.feriadoNome
-                  : dia?.ausenciaLabel
-                    ? dia.ausenciaLabel
-                    : dia && (dia.entrada || dia.saidaExpediente)
-                      ? "eletrônico"
-                      : "";
-            const temObservacao = dia ? temLancamento(dia) : false;
-            // Ausência total ou feriado/ponto facultativo: destacado em vermelho nos campos Hora.
+            const sabado = dia?.diaSemana === "Sáb";
+            const domingo = dia?.diaSemana === "Dom";
             const textoHoraEspecial = dia
               ? dia.ausenciaIntegral
                 ? "AUSÊNCIA TOTAL"
-                : dia.feriadoNome &&
-                    (dia.feriadoBloqueia || (!dia.entrada && !dia.saidaExpediente))
-                  ? holidayLabel(dia.feriadoTipo).toUpperCase()
+                : dia.feriadoNome && (dia.feriadoBloqueia || (!dia.entrada && !dia.saidaExpediente))
+                  ? dia.feriadoNome.toUpperCase()
                   : null
               : null;
+            const temObservacao = dia ? temLancamento(dia) : false;
 
             return (
               <tr key={numero} className={dia?.naoUtil ? "bg-neutral-100" : ""}>
@@ -264,7 +244,7 @@ export function LivroPontoFrente({
                     sabado || domingo ? "text-[9px]" : "text-[7px] italic text-neutral-700"
                   }`}
                 >
-                  {marcacaoAssinatura}
+                  {textoHoraEspecial || (sabado ? "Sábado" : domingo ? "Domingo" : dia?.entrada ? "eletrônico" : "")}
                 </td>
                 <td className="border border-black px-1 text-center font-mono">
                   {textoHoraEspecial ? (
@@ -280,7 +260,7 @@ export function LivroPontoFrente({
                     sabado || domingo ? "text-[9px]" : "text-[7px] italic text-neutral-700"
                   }`}
                 >
-                  {marcacaoAssinatura}
+                  {textoHoraEspecial || (sabado ? "Sábado" : domingo ? "Domingo" : dia?.saidaExpediente ? "eletrônico" : "")}
                 </td>
                 <td className="border border-black px-1 text-center align-middle text-[8px] font-bold">
                   {temObservacao ? (
@@ -415,9 +395,10 @@ export function LivroPontoVerso({
   escola?: EscolaConfig;
 }) {
   const { oficial, dias, totais, identificacao } = documento;
+  const hoje = new Date().toLocaleDateString("pt-BR");
+  const linhasEmBranco = 32;
 
-  // Lançamentos do mês: ausências, faltas, feriados, atrasos, serviço extraordinário e
-  // batidas incompletas — todos destacados no verso, como determina o registro de ponto.
+  const resumoCodigos = new Map<string, number>();
   const lancamentos = dias
     .map((dia) => ({
       dia,
@@ -427,7 +408,6 @@ export function LivroPontoVerso({
       (item) => item.codigos.length > 0 || item.dia.incompleto || Boolean(item.dia.feriadoNome),
     );
 
-  const resumoCodigos = new Map<string, number>();
   for (const item of lancamentos) {
     for (const codigo of item.codigos) {
       const base = codigo.split(" ")[0];
@@ -437,8 +417,6 @@ export function LivroPontoVerso({
       resumoCodigos.set("INC", (resumoCodigos.get("INC") ?? 0) + 1);
     }
   }
-
-  const linhasEmBranco = lancamentos.length > 0 ? 10 : 26;
 
   return (
     <article
@@ -560,222 +538,24 @@ export function LivroPontoVerso({
           </div>
           <div className="text-right text-[11px] font-semibold italic">Verso</div>
         </div>
+        <p className="mt-3 text-[6.5px] text-neutral-700">
+          Consolidação das ocorrências do mês (códigos FI, FJ, FÉ, LS, LP, DO, AT, OT, FC, SP, FER,
+          PF, REC, SUS, HE, A e INC). Os dias assinalados com "VIDE VERSO" na frente têm o
+          lançamento detalhado nesta folha. Demonstrativo eletrônico de apoio: protocolo{" "}
+          {documento.protocolo}.
+        </p>
       </footer>
-    </article>
-  );
-}
-
-export function LivroPontoAnexo({
-  documento,
-  pagina,
-  paginaAtual,
-  totalPaginas,
-  comQuebra = true,
-  escola = ESCOLA_PADRAO,
-}: {
-  documento: LivroPontoDocumento;
-  pagina?: string;
-  paginaAtual?: number;
-  totalPaginas?: number;
-  comQuebra?: boolean;
-  escola?: EscolaConfig;
-}) {
-  const { identificacao, dias, totais, fechamento, oficial } = documento;
-
-  return (
-    <article
-      className={`print-page mx-auto w-full max-w-[1100px] bg-white p-4 text-[10px] text-black sm:p-6 ${
-        comQuebra ? "print-break-after" : ""
-      }`}
-    >
-      <Cabecalho
-        mesAno={oficial.mesAno}
-        pagina={paginaAtual != null && totalPaginas != null ? `${paginaAtual}/${totalPaginas}` : pagina}
-        comPagina={false}
-        escola={escola}
-        comBrasao={escola.brasaoNoVerso}
-      />
-
-      <div className="mt-2 border border-black px-2 py-1">
-        <p className="text-[11px] font-bold">
-          ANEXO — DEMONSTRATIVO ELETRÔNICO DA APURAÇÃO (subsídio à consolidação)
-        </p>
-        <p className="text-[8.5px]">
-          {identificacao.nome} · Matrícula {identificacao.matricula} · {identificacao.cargo} ·{" "}
-          {identificacao.categoria} · {identificacao.jornadaResumo} · {identificacao.cargaSemanal}
-        </p>
-      </div>
-
-      <table className="mt-2 w-full border-collapse text-[8.5px]">
-        <thead>
-          <tr className="bg-neutral-100">
-            <th className="border border-black px-1 py-0.5">Dia</th>
-            <th className="border border-black px-1 py-0.5">Entrada</th>
-            <th className="border border-black px-1 py-0.5">Saída almoço</th>
-            <th className="border border-black px-1 py-0.5">Retorno almoço</th>
-            <th className="border border-black px-1 py-0.5">Saída</th>
-            <th className="border border-black px-1 py-0.5">Horas cumpridas</th>
-            <th className="border border-black px-1 py-0.5">Horas previstas</th>
-            <th className="border border-black px-1 py-0.5">Saldo</th>
-            <th className="border border-black px-1 py-0.5">Códigos</th>
-            <th className="border border-black px-1 py-0.5">Ocorrência / observação</th>
-          </tr>
-        </thead>
-        <tbody>
-          {dias.map((dia) => (
-            <tr key={dia.data} className={dia.naoUtil ? "bg-neutral-100" : ""}>
-              <td className="border border-black px-1 py-0.5 text-center font-semibold">
-                {dia.dia} {dia.diaSemana}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.entrada || "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.saidaAlmoco || "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.retornoAlmoco || "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.saidaExpediente || "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.horasCumpridas > 0 ? horasDecimais(dia.horasCumpridas) : "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.horasPrevistas > 0 ? horasDecimais(dia.horasPrevistas) : "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-mono">
-                {dia.horasCumpridas > 0 || dia.horasPrevistas > 0
-                  ? `${dia.saldo >= 0 ? "+" : "-"}${horasDecimais(Math.abs(dia.saldo))}`
-                  : "—"}
-              </td>
-              <td className="border border-black px-1 py-0.5 text-center font-semibold">
-                {dia.codigos.join(" · ")}
-              </td>
-              <td className="border border-black px-1 py-0.5">
-                {descricaoLancamento(dia)}
-              </td>
-            </tr>
-          ))}
-          <tr className="bg-neutral-100 font-bold">
-            <td className="border border-black px-1 py-0.5 text-center" colSpan={5}>
-              TOTAIS DO MÊS
-            </td>
-            <td className="border border-black px-1 py-0.5 text-center font-mono">
-              {horasDecimais(totais.totalMinutos)}
-            </td>
-            <td className="border border-black px-1 py-0.5 text-center font-mono">
-              {horasDecimais(totais.esperadoMinutos)}
-            </td>
-            <td className="border border-black px-1 py-0.5 text-center font-mono">
-              {totais.saldoMinutos >= 0 ? "+" : "-"}
-              {horasDecimais(Math.abs(totais.saldoMinutos))}
-            </td>
-            <td className="border border-black px-1 py-0.5 text-center">
-              {totais.diasFaltas > 0 ? `FI: ${totais.diasFaltas}` : "Sem faltas"}
-            </td>
-            <td className="border border-black px-1 py-0.5">
-              {totais.diasTrabalhados} dia(s) com registro · {totais.diasAusencia} ausência(s) ·{" "}
-              {totais.diasFeriado} feriado(s) · {totais.diasExtra} dia(s) extra · {totais.atrasos}{" "}
-              atraso(s)
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      <div className="mt-2 grid grid-cols-2 gap-2">
-        <div className="border border-black">
-          <p className="border-b border-black bg-neutral-100 px-1.5 py-0.5 text-[9px] font-bold">
-            RESUMO DA COMPETÊNCIA
-          </p>
-          <table className="w-full text-[8.5px]">
-            <tbody>
-              {[
-                ["Horas cumpridas", `${horasDecimais(totais.totalMinutos)} h`],
-                ["Horas previstas", `${horasDecimais(totais.esperadoMinutos)} h`],
-                [
-                  "Saldo da competência",
-                  `${totais.saldoMinutos >= 0 ? "+" : "-"}${horasDecimais(Math.abs(totais.saldoMinutos))} h`,
-                ],
-                ["Faltas injustificadas (FI)", String(totais.diasFaltas)],
-                ["Ausências justificadas", String(totais.diasAusencia)],
-                ["Feriados / pontos facultativos", String(totais.diasFeriado)],
-                ["Serviço extraordinário (HE)", String(totais.diasExtra)],
-                ["Batidas incompletas", String(totais.incompletos)],
-              ].map(([label, value]) => (
-                <tr key={label} className="border-b border-black/40 last:border-b-0">
-                  <td className="px-1.5 py-0.5">{label}</td>
-                  <td className="w-[80px] px-1.5 py-0.5 text-right font-mono font-bold">{value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <div className="border border-black">
-          <p className="border-b border-black bg-neutral-100 px-1.5 py-0.5 text-[9px] font-bold">
-            OCORRÊNCIAS, COMPENSAÇÕES E ATESTADO DA CHEFIA IMEDIATA
-          </p>
-          <div className="min-h-[110px] px-1.5 py-1 text-[8.5px]">
-            <p className="whitespace-pre-wrap">
-              {fechamento?.ocorrencias?.trim()
-                ? fechamento.ocorrencias
-                : "Sem ocorrências além das registradas nas colunas de frequência do formulário oficial."}
-            </p>
-          </div>
-          <div className="border-t border-black px-1.5 py-1 text-[7.5px] leading-[1.35]">
-            Atesto, na condição de superior imediato, que os registros acima correspondem às
-            ocorrências verificadas no mês, nos termos do Decreto nº 52.054/2007 e da Instrução UCRH
-            1/2007, inclusive quanto às ausências temporárias, faltas, compensações, afastamentos e
-            licenças.
-          </div>
-        </div>
-      </div>
-
-      <div className="mt-2 border border-black">
-        <p className="border-b border-black bg-neutral-100 px-1.5 py-0.5 text-[9px] font-bold">
-          LEGENDA DOS CÓDIGOS
-        </p>
-        <div className="grid grid-cols-3 gap-x-3 px-1.5 py-1 text-[7.5px]">
-          {LEGENDA_OCORRENCIAS.map((item) => (
-            <p key={item.codigo}>
-              <span className="font-mono font-bold">{item.codigo}</span> — {item.descricao}
-            </p>
-          ))}
-        </div>
-      </div>
-
-      {fechamento ? (
-        <div className="mt-2 border border-black px-1.5 py-1 text-[8.5px]">
-          <p className="font-bold">
-            COMPETÊNCIA FECHADA — protocolo {fechamento.protocolo} ·{" "}
-            {fechamento.fechadoPorNome ?? "Direção"} · {formatDateTimeBR(fechamento.fechadoEm)} ·
-            horas apuradas {horasDecimais(fechamento.totalMinutos)} h · faltas{" "}
-            {fechamento.diasFalta} dia(s)
-          </p>
-        </div>
-      ) : (
-        <p className="mt-2 border border-dashed border-black px-1.5 py-1 text-[7.5px] uppercase">
-          Competência em aberto — o documento passa a definitivo após o fechamento pela direção da
-          escola.
-        </p>
-      )}
     </article>
   );
 }
 
 export function LivroPontoOficial({
   documento,
-  incluirAnexo = false,
-  ultimaSemQuebra = true,
   paginaAtual,
   totalPaginas,
   escola = ESCOLA_PADRAO,
 }: {
   documento: LivroPontoDocumento;
-  incluirAnexo?: boolean;
-  ultimaSemQuebra?: boolean;
   paginaAtual?: number;
   totalPaginas?: number;
   escola?: EscolaConfig;
@@ -795,19 +575,9 @@ export function LivroPontoOficial({
         pagina="2"
         paginaAtual={paginaAtual}
         totalPaginas={totalPaginas}
-        comQuebra={incluirAnexo || !ultimaSemQuebra}
+        comQuebra
         escola={escola}
       />
-      {incluirAnexo ? (
-        <LivroPontoAnexo
-          documento={documento}
-          pagina="3"
-          paginaAtual={paginaAtual}
-          totalPaginas={totalPaginas}
-          comQuebra={!ultimaSemQuebra}
-          escola={escola}
-        />
-      ) : null}
     </>
   );
 }
