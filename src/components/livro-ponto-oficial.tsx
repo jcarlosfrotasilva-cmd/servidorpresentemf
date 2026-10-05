@@ -10,7 +10,7 @@ import type { LivroPontoDocumento } from "@/lib/livro-ponto";
 import { dayOfWeek, daysInMonth, formatDateBR, formatDateTimeBR } from "@/lib/time";
 
 /** Quantidade de linhas pautadas no verso (28 = bom equilíbrio entre espaço e página única). */
-const LINHAS_VERSO = 28;
+const LINHAS_VERSO = 32;
 
 function LogoBrasao({ escola }: { escola: EscolaConfig }) {
   const altura = Math.max(8, Math.min(45, escola.brasaoAlturaMm));
@@ -64,18 +64,21 @@ function Cabecalho({
           {comBrasao ? <LogoBrasao escola={escola} /> : null}
         </div>
 
-        <div className="flex-1 px-2 py-1.5 text-center">
+        <div className="flex-1 px-1.5 py-1 text-center">
           <p className="text-[11px] font-bold tracking-wide">{escola.governo}</p>
           <p className="text-[10px] font-semibold">{escola.secretaria}</p>
           <p className="text-[9px]">
             <span className="font-semibold">UNIDADE:</span> {escola.unidade}
             {escola.cie ? ` — ${escola.cie}` : ""}
           </p>
-          <p className="text-[8px]">
-            {escola.diretoria} · {escola.endereco} — {escola.municipio}/{escola.uf}
+          <p className="text-[7.5px]">
+            {escola.diretoria}
+          </p>
+          <p className="text-[7.5px]">
+            {escola.endereco} — {escola.municipio}/{escola.uf}
             {escola.telefone ? ` · Tel. ${escola.telefone}` : ""}
           </p>
-          <p className="mt-0.5 text-[11px] font-bold">REGISTRO DE PONTO MÊS/ANO: {mesAno}</p>
+          <p className="mt-0.5 text-[10px] font-bold">REGISTRO DE PONTO MÊS/ANO: {mesAno}</p>
         </div>
 
         <div className="flex w-[62px] shrink-0 items-start justify-end self-stretch px-1.5 py-1.5">
@@ -541,9 +544,9 @@ export function LivroPontoVerso({
       <p className="mt-2 text-[8.5px] font-semibold uppercase">
         Observações complementares e compensações de horas
       </p>
-      <div className="mt-2 space-y-[13px]">
+      <div className="mt-3 space-y-[16px]">
         {Array.from({ length: linhasEmBranco }).map((_, index) => (
-          <div key={index} className="border-b border-black py-[10px]" />
+          <div key={index} className="border-b border-black py-[12px]" />
         ))}
       </div>
 

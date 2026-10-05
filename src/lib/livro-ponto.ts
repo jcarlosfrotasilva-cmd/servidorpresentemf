@@ -282,15 +282,21 @@ export async function buildLivroPonto(
   });
   const horarioTrabalho =
     Array.from(padraoPorDia.entries())
-      .map(([faixa, nomes]) => `${faixa} (${nomes.join(", ")})`)
+      .map(([faixa, nomes]) => `(${nomes.join(", ")}) ${faixa}`)
       .join(" · ") || "A definir pela direção";
 
-  const comIntervalo = Array.from(week.values()).find(
-    (day) => day.trabalha && day.saidaAlmoco && day.retornoAlmoco,
-  );
-  const intervaloAlmoco = comIntervalo
-    ? `${hhmm(comIntervalo.saidaAlmoco)} às ${hhmm(comIntervalo.retornoAlmoco)} (nos dias com intervalo)`
-    : "Não há intervalo previsto";
+  const intervalosPorDia = new Map<string, string[]>();
+  week.forEach((day, iso) => {
+    if (!day.trabalha || !day.saidaAlmoco || !day.retornoAlmoco) return;
+    const chave = `${hhmm(day.saidaAlmoco)}–${hhmm(day.retornoAlmoco)}`;
+    const lista = intervalosPorDia.get(chave) ?? [];
+    lista.push(weekdayLabel(iso));
+    intervalosPorDia.set(chave, lista);
+  });
+  const intervaloAlmoco =
+    Array.from(intervalosPorDia.entries())
+      .map(([faixa, nomes]) => `(${nomes.join(", ")}) ${faixa}`)
+      .join(" · ") || "Não há intervalo previsto";
 
   const diasFerias = dias.filter((dia) =>
     (linha?.dias ?? []).some(

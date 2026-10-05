@@ -25,7 +25,7 @@ export default async function LivroPontoUnidadePage({
 
   const { mes: mesParam, anexo } = await searchParams;
   const mes = mesParam && /^\d{4}-\d{2}$/.test(mesParam) ? mesParam : currentMonth();
-  const incluirAnexo = anexo === "1";
+  
 
   const servidores = await db
     .select({ id: employees.id })
@@ -49,7 +49,6 @@ export default async function LivroPontoUnidadePage({
           </p>
           <p className="text-[13px] font-semibold text-slate-700">
             {documentos.length} servidor(es) · frente e verso do formulário oficial
-            {incluirAnexo ? " + anexo" : ""}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2.5">
@@ -59,13 +58,7 @@ export default async function LivroPontoUnidadePage({
           >
             <ArrowRightIcon className="h-4 w-4" /> Voltar
           </Link>
-          <Link
-            href={`/livro-ponto/unidade?mes=${mes}&anexo=${incluirAnexo ? "0" : "1"}`}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-brand-400 hover:text-brand-700"
-          >
-            <BookIcon className="h-4 w-4" />
-            {incluirAnexo ? "Ocultar anexos" : "Incluir anexos"}
-          </Link>
+
           <BotaoImprimir label="Imprimir todos" icon={<DownloadIcon className="h-4 w-4" />} />
         </div>
       </div>
@@ -81,11 +74,10 @@ export default async function LivroPontoUnidadePage({
             >
               <LivroPontoOficial
                 documento={documento}
-                incluirAnexo={incluirAnexo}
-                ultimaSemQuebra={index === documentos.length - 1 && !incluirAnexo}
                 paginaAtual={paginaAtual}
-                totalPaginas={totalPaginas}
+                totalPaginas={documentos.length}
                 escola={escola}
+                ultimaSemQuebra={index === documentos.length - 1}
               />
             </div>
           );

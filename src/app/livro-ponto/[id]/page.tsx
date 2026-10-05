@@ -29,7 +29,7 @@ export default async function LivroPontoPage({
   if (user.role === "SERVIDOR" && user.employeeId !== employeeId) redirect("/painel/livro-ponto");
 
   const mes = mesParam && /^\d{4}-\d{2}$/.test(mesParam) ? mesParam : currentMonth();
-  const incluirAnexo = anexo !== "0";
+  
   const [documento, escola] = await Promise.all([
     buildLivroPonto(employeeId, mes),
     getConfiguracao(),
@@ -57,13 +57,7 @@ export default async function LivroPontoPage({
           >
             <ArrowRightIcon className="h-4 w-4" /> Voltar ao sistema
           </Link>
-          <Link
-            href={`/livro-ponto/${employeeId}?mes=${mes}&anexo=${incluirAnexo ? "0" : "1"}`}
-            className="inline-flex h-11 items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:border-brand-400 hover:text-brand-700"
-          >
-            <BookIcon className="h-4 w-4" />
-            {incluirAnexo ? "Ocultar anexo" : "Incluir anexo"}
-          </Link>
+
           <BotaoImprimir label="Baixar / imprimir PDF" icon={<DownloadIcon className="h-4 w-4" />} />
         </div>
       </div>
@@ -72,7 +66,6 @@ export default async function LivroPontoPage({
         <div className="shadow-[var(--shadow-float)] print:shadow-none">
           <LivroPontoOficial
             documento={documento}
-            incluirAnexo={incluirAnexo}
             escola={escola}
           />
         </div>
@@ -80,7 +73,7 @@ export default async function LivroPontoPage({
 
       <div className="no-print mx-auto max-w-[1100px] px-4 pb-8 pt-4 sm:px-6">
         <p className="text-center text-[11px] text-slate-500">
-          Frente e verso do formulário oficial{incluirAnexo ? " + anexo demonstrativo" : ""} — um
+          Frente e verso do formulário oficial — um
           documento por servidor. Use “Salvar como PDF” na janela de impressão (layout ajustado para
           folha A4 retrato).
         </p>
